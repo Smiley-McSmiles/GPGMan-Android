@@ -335,7 +335,7 @@ object PgpEngine {
                         publicKey = masterPub,
                         isSecret = true,
                         hasPassphrase = hasPass,
-                        armoredPublic = exportPublicKeyToArmored(obj.publicKey),
+                        armoredPublic = exportSecretKeyPublicRingToArmored(obj),
                         armoredPrivate = exportSecretKeyToArmored(obj)
                     )
                     results.add(info)
@@ -364,7 +364,7 @@ object PgpEngine {
                                 publicKey = masterPub,
                                 isSecret = true,
                                 hasPassphrase = hasPass,
-                                armoredPublic = exportPublicKeyToArmored(ring.publicKey),
+                                armoredPublic = exportSecretKeyPublicRingToArmored(ring),
                                 armoredPrivate = exportSecretKeyToArmored(ring)
                             )
                         )
@@ -450,48 +450,89 @@ object PgpEngine {
         return keyRingToArmoredString { out -> key.encode(out) }
     }
 
+    fun exportSecretKeyPublicRingToArmored(ring: PGPSecretKeyRing): String {
+        return keyRingToArmoredString { out ->
+            for (k in ring.publicKeys) {
+                k.encode(out)
+            }
+        }
+    }
+
     private fun exportSecretKeyToArmored(ring: PGPSecretKeyRing): String {
         return keyRingToArmoredString { out -> ring.encode(out) }
     }
 
     /**
-     * Reads a PGPPublicKey from armored text.
+     * Reads a PGPPublicKey from armored text, prioritizing encryption-capable keys/subkeys.
      */
     fun readPublicKey(armoredText: String): PGPPublicKey? {
-        val stream = PGPUtil.getDecoderStream(ByteArrayInputStream(armoredText.toByteArray(StandardCharsets.UTF_8)))
-        val pgpFact = JcaPGPObjectFactory(stream)
-        var obj = pgpFact.nextObject()
-        while (obj != null) {
-            when (obj) {
-                is PGPPublicKeyRing -> {
-                    // Try to find encryption subkey first if exists, otherwise master
-                    var encKey: PGPPublicKey? = null
-                    for (k in obj.publicKeys) {
-                        if (k.isEncryptionKey) {
-                            encKey = k
-                            break
-                        }
-                    }
-                    return encKey ?: obj.publicKey
-                }
-                is PGPPublicKeyRingCollection -> {
-                    val ring = obj.keyRings.asSequence().firstOrNull()
-                    if (ring != null) {
-                        var encKey: PGPPublicKey? = null
-                        for (k in ring.publicKeys) {
+        try {
+            val stream = PGPUtil.getDecoderStream(ByteArrayInputStream(armoredText.toByteArray(StandardCharsets.UTF_8)))
+            val pgpFact = JcaPGPObjectFactory(stream)
+            var obj = pgpFact.nextObject()
+            var firstKey: PGPPublicKey? = null
+            var encKey: PGPPublicKey? = null
+
+            while (obj != null) {
+                when (obj) {
+                    is PGPPublicKeyRing -> {
+                        for (k in obj.publicKeys) {
+                            if (firstKey == null) firstKey = k
                             if (k.isEncryptionKey) {
                                 encKey = k
                                 break
                             }
                         }
-                        return encKey ?: ring.publicKey
+                        if (encKey != null) return encKey
+                    }
+                    is PGPPublicKeyRingCollection -> {
+                        for (ring in obj) {
+                            for (k in ring.publicKeys) {
+                                if (firstKey == null) firstKey = k
+                                if (k.isEncryptionKey) {
+                                    encKey = k
+                                    break
+                                }
+                            }
+                            if (encKey != null) return encKey
+                        }
+                    }
+                    is PGPSecretKeyRing -> {
+                        for (k in obj.publicKeys) {
+                            if (firstKey == null) firstKey = k
+                            if (k.isEncryptionKey) {
+                                encKey = k
+                                break
+                            }
+                        }
+                        if (encKey != null) return encKey
+                    }
+                    is PGPSecretKeyRingCollection -> {
+                        for (ring in obj) {
+                            for (k in ring.publicKeys) {
+                                if (firstKey == null) firstKey = k
+                                if (k.isEncryptionKey) {
+                                    encKey = k
+                                    break
+                                }
+                            }
+                            if (encKey != null) return encKey
+                        }
+                    }
+                    is PGPPublicKey -> {
+                        if (firstKey == null) firstKey = obj
+                        if (obj.isEncryptionKey) {
+                            encKey = obj
+                            break
+                        }
                     }
                 }
-                is PGPPublicKey -> return obj
+                obj = pgpFact.nextObject()
             }
-            obj = pgpFact.nextObject()
+            return encKey ?: firstKey
+        } catch (_: Exception) {
+            return null
         }
-        return null
     }
 
     /**
@@ -838,6 +879,8 @@ object PgpEngine {
             }
         }
 
+        // RFC 4880 Section 7: Cleartext body must be terminated with a line break before -----BEGIN PGP SIGNATURE-----
+        armoredOut.write("\r\n".toByteArray(StandardCharsets.UTF_8))
         armoredOut.endClearText()
         sigGen.generate().encode(armoredOut)
         armoredOut.close()

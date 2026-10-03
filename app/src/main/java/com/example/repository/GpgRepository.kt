@@ -222,6 +222,31 @@ class GpgRepository(private val dao: GpgDao) {
         sb.toString()
     }
 
+    private suspend fun resolveEncryptionKey(entity: PgpKeyEntity): PGPPublicKey? {
+        var pk = PgpEngine.readPublicKey(entity.armoredPublicKey)
+        if (pk != null && pk.isEncryptionKey) {
+            return pk
+        }
+        val encPriv = entity.encryptedArmoredPrivateKey
+        if (encPriv != null) {
+            try {
+                val rawArmoredPriv = KeyStoreCrypto.decrypt(encPriv)
+                val secretRing = PgpEngine.readSecretKeyRing(rawArmoredPriv)
+                if (secretRing != null) {
+                    for (k in secretRing.publicKeys) {
+                        if (k.isEncryptionKey) {
+                            pk = k
+                            val fullArmoredPub = PgpEngine.exportSecretKeyPublicRingToArmored(secretRing)
+                            dao.updateKey(entity.copy(armoredPublicKey = fullArmoredPub))
+                            break
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+        return pk
+    }
+
     // --- Encryption / Decryption ---
 
     suspend fun encryptText(
@@ -234,8 +259,15 @@ class GpgRepository(private val dao: GpgDao) {
             for (fp in recipientFingerprints) {
                 val entity = dao.getKeyByFingerprint(fp)
                 if (entity != null) {
-                    val pk = PgpEngine.readPublicKey(entity.armoredPublicKey)
-                    if (pk != null) publicKeys.add(pk)
+                    val pk = resolveEncryptionKey(entity)
+                    if (pk != null) {
+                        if (!pk.isEncryptionKey) {
+                            throw IllegalArgumentException(
+                                "Key '${entity.name}' (${entity.keyIdHex}) is a signature-only key (${entity.algorithm}) without an encryption subkey."
+                            )
+                        }
+                        publicKeys.add(pk)
+                    }
                 }
             }
 
@@ -343,8 +375,15 @@ class GpgRepository(private val dao: GpgDao) {
             for (fp in recipientFingerprints) {
                 val entity = dao.getKeyByFingerprint(fp)
                 if (entity != null) {
-                    val pk = PgpEngine.readPublicKey(entity.armoredPublicKey)
-                    if (pk != null) publicKeys.add(pk)
+                    val pk = resolveEncryptionKey(entity)
+                    if (pk != null) {
+                        if (!pk.isEncryptionKey) {
+                            throw IllegalArgumentException(
+                                "Key '${entity.name}' (${entity.keyIdHex}) is a signature-only key (${entity.algorithm}) without an encryption subkey."
+                            )
+                        }
+                        publicKeys.add(pk)
+                    }
                 }
             }
 

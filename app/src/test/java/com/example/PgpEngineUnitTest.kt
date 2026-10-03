@@ -192,6 +192,63 @@ class PgpEngineUnitTest {
     }
 
     @Test
+    fun testEd25519EncryptionAndDecryption() {
+        val (armoredPub, armoredPriv) = PgpEngine.generateKeyPair(
+            algorithmType = "Ed25519",
+            name = "Ed25519 Test",
+            email = "ed@example.com",
+            comment = "",
+            keyBits = 256,
+            passphrase = "edpass",
+            expiryDays = null
+        )
+        val pubKey = PgpEngine.readPublicKey(armoredPub)
+        assertNotNull(pubKey)
+        assertTrue("Subkey must be encryption capable", pubKey!!.isEncryptionKey)
+
+        val message = "Hello Ed25519 and Cv25519"
+        val encryptedBytes = PgpEngine.encryptData(
+            plainBytes = message.toByteArray(StandardCharsets.UTF_8),
+            filename = "msg.txt",
+            recipientPublicKeys = listOf(pubKey),
+            symmetricPassphrase = ""
+        )
+        assertNotNull(encryptedBytes)
+
+        val secretRing = PgpEngine.readSecretKeyRing(armoredPriv)
+        assertNotNull(secretRing)
+
+        val decResult = PgpEngine.decryptData(
+            encryptedBytes = encryptedBytes,
+            secretKeyRings = listOf(secretRing!!),
+            passphrase = "edpass"
+        )
+        assertTrue("Decryption should succeed: ${decResult.errorMessage}", decResult.isSuccess)
+        assertEquals(message, decResult.decryptedText)
+
+        // Also test parsed armoredPublicKey from parseKeyBlock
+        val parsedList = PgpEngine.parseKeyBlock(armoredPriv)
+        val privInfo = parsedList.first { it.isSecretKey }
+        val parsedPubKey = PgpEngine.readPublicKey(privInfo.armoredPublicKey)
+        assertNotNull("Parsed armoredPublicKey must yield a key", parsedPubKey)
+        assertTrue("Parsed public key must be encryption capable", parsedPubKey!!.isEncryptionKey)
+
+        val secondEnc = PgpEngine.encryptData(
+            plainBytes = "Second message".toByteArray(StandardCharsets.UTF_8),
+            filename = "second.txt",
+            recipientPublicKeys = listOf(parsedPubKey),
+            symmetricPassphrase = ""
+        )
+        val secondDec = PgpEngine.decryptData(
+            encryptedBytes = secondEnc,
+            secretKeyRings = listOf(secretRing),
+            passphrase = "edpass"
+        )
+        assertTrue(secondDec.isSuccess)
+        assertEquals("Second message", secondDec.decryptedText)
+    }
+
+    @Test
     fun testCleartextSignatureAndVerification() {
         val (armoredPub, armoredPriv) = PgpEngine.generateRsaKeyPair(
             name = "Signer Carol",
@@ -217,5 +274,30 @@ class PgpEngineUnitTest {
         assertTrue("Signature must be valid: ${verifyResult.message}", verifyResult.isValid)
         assertTrue(verifyResult.isKeyFoundInKeyring)
         assertTrue(verifyResult.signerUserId?.contains("Carol") == true)
+    }
+
+    @Test
+    fun testCleartextSingleLineMessageFormatting() {
+        val (armoredPub, armoredPriv) = PgpEngine.generateRsaKeyPair(
+            name = "Test User",
+            email = "user@test.org",
+            comment = "",
+            keyBits = 2048,
+            passphrase = "password123",
+            expiryDays = null
+        )
+        val secretRing = PgpEngine.readSecretKeyRing(armoredPriv)
+        assertNotNull(secretRing)
+
+        val message = "test2"
+        val signedMessage = PgpEngine.createCleartextSignature(message, secretRing!!, "password123")
+
+        // Ensure -----BEGIN PGP SIGNATURE----- is on a separate line and not attached to "test2"
+        org.junit.Assert.assertFalse("Must not have test2 concatenated with signature marker", signedMessage.contains("test2-----BEGIN PGP SIGNATURE-----"))
+        assertTrue("Signature marker must be on its own line preceded by newline", signedMessage.contains("test2\r\n-----BEGIN PGP SIGNATURE-----") || signedMessage.contains("test2\n-----BEGIN PGP SIGNATURE-----"))
+
+        val allPubKeys = PgpEngine.readAllPublicKeys(armoredPub)
+        val verifyResult = PgpEngine.verifyCleartextSignature(signedMessage, allPubKeys)
+        assertTrue("Signature of single-line message must verify: ${verifyResult.message}", verifyResult.isValid)
     }
 }
