@@ -1,0 +1,6 @@
+{
+  "name": "GPGMan",
+  "description": "GPG & OpenPGP Key Manager, Secure File & Text Encryption, Digital Signatures, and Encrypted Vault",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
