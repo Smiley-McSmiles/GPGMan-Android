@@ -1,5 +1,6 @@
 # GPGMan 🛡️
 
+[![Version](https://img.shields.io/badge/version-v1.0.1-blue.svg?logo=github&logoColor=white)](https://github.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android-3DDC84.svg?logo=android&logoColor=white)](https://android.com)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org)

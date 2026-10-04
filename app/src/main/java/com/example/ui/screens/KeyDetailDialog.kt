@@ -63,6 +63,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.example.data.PgpKeyEntity
 import com.example.ui.GpgViewModel
 import com.example.ui.components.CodeBlockView
+import com.example.ui.components.ExportAscButton
+import com.example.ui.components.ExportAscIconButton
 import com.example.ui.components.FingerprintBadge
 import com.example.ui.components.KeyTypeChip
 import com.example.ui.components.copyToClipboard
@@ -239,11 +241,18 @@ fun KeyDetailDialog(
                             fontWeight = FontWeight.SemiBold
                         )
                     }
-                    IconButton(onClick = { copyToClipboard(context, "Key ID", key.keyIdHex) }) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Copy Key ID",
-                            modifier = Modifier.size(18.dp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { copyToClipboard(context, "Key ID", key.keyIdHex) }) {
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = "Copy Key ID",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        ExportAscIconButton(
+                            fileName = "${key.name.replace(' ', '_')}_${key.keyIdHex.takeLast(8)}.asc",
+                            content = { key.armoredPublicKey },
+                            contentDescription = "Export public key directly to .asc file"
                         )
                     }
                 }
@@ -324,7 +333,15 @@ fun KeyDetailDialog(
                 CodeBlockView(
                     text = key.armoredPublicKey,
                     title = "PUBLIC KEY BLOCK",
+                    exportFileName = "${key.name.replace(' ', '_')}_public.asc",
                     maxHeight = 160
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                ExportAscButton(
+                    fileName = "${key.name.replace(' ', '_')}_public.asc",
+                    content = { key.armoredPublicKey },
+                    label = "Export Public Key (.asc)",
+                    modifier = Modifier.fillMaxWidth().testTag("export_public_key_asc_button")
                 )
 
                 // Secret Key Export Section
@@ -344,7 +361,15 @@ fun KeyDetailDialog(
                         CodeBlockView(
                             text = exportedPrivateKeyText!!,
                             title = "SECRET KEY BLOCK (KEEP SECURE!)",
+                            exportFileName = "${key.name.replace(' ', '_')}_secret.asc",
                             maxHeight = 160
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ExportAscButton(
+                            fileName = "${key.name.replace(' ', '_')}_secret.asc",
+                            content = { exportedPrivateKeyText!! },
+                            label = "Export Secret Key (.asc)",
+                            modifier = Modifier.fillMaxWidth().testTag("export_secret_key_asc_button")
                         )
                     }
                 }

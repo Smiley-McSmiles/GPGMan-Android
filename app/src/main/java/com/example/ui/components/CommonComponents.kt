@@ -3,7 +3,10 @@ package com.example.ui.components
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -29,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
@@ -163,13 +167,113 @@ fun KeyTypeChip(isSecret: Boolean, isDefault: Boolean = false) {
 }
 
 @Composable
+fun rememberAscFileSaver(
+    defaultFileName: String,
+    contentProvider: () -> String
+): () -> Unit {
+    val context = LocalContext.current
+    var cachedContent by remember { mutableStateOf("") }
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(cachedContent.toByteArray(java.nio.charset.StandardCharsets.UTF_8))
+                    stream.flush()
+                }
+                Toast.makeText(context, "Exported successfully as .asc file", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    return {
+        cachedContent = contentProvider()
+        val fileName = if (defaultFileName.endsWith(".asc", ignoreCase = true)) defaultFileName else "$defaultFileName.asc"
+        launcher.launch(fileName)
+    }
+}
+
+@Composable
+fun ExportAscIconButton(
+    fileName: String,
+    content: () -> String,
+    modifier: Modifier = Modifier,
+    tint: Color = MaterialTheme.colorScheme.primary,
+    contentDescription: String = "Export directly to .asc file"
+) {
+    val saveAsc = rememberAscFileSaver(fileName, content)
+    IconButton(
+        onClick = saveAsc,
+        modifier = modifier.testTag("export_asc_icon_button")
+    ) {
+        Icon(
+            imageVector = Icons.Default.FileDownload,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+@Composable
+fun ExportAscButton(
+    fileName: String,
+    content: () -> String,
+    modifier: Modifier = Modifier,
+    label: String = "Export .asc",
+    outlined: Boolean = true
+) {
+    val saveAsc = rememberAscFileSaver(fileName, content)
+    if (outlined) {
+        OutlinedButton(
+            onClick = saveAsc,
+            modifier = modifier.testTag("export_asc_button")
+        ) {
+            Icon(
+                imageVector = Icons.Default.FileDownload,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(label)
+        }
+    } else {
+        Button(
+            onClick = saveAsc,
+            modifier = modifier.testTag("export_asc_button")
+        ) {
+            Icon(
+                imageVector = Icons.Default.FileDownload,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(label)
+        }
+    }
+}
+
+@Composable
 fun CodeBlockView(
     text: String,
     title: String = "PGP ARMOR",
     maxHeight: Int = 220,
+    exportFileName: String? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val derivedFileName = exportFileName ?: when {
+        title.contains("PUBLIC", ignoreCase = true) -> "public_key.asc"
+        title.contains("SECRET", ignoreCase = true) || title.contains("PRIVATE", ignoreCase = true) -> "private_key.asc"
+        title.contains("SIGNED", ignoreCase = true) -> "signed_message.asc"
+        title.contains("ENCRYPT", ignoreCase = true) -> "encrypted_message.asc"
+        else -> "pgp_armor.asc"
+    }
+    val saveAsc = rememberAscFileSaver(derivedFileName) { text }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -189,7 +293,10 @@ fun CodeBlockView(
                 color = MaterialTheme.colorScheme.secondary,
                 fontWeight = FontWeight.Bold
             )
-            Row {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
                 IconButton(
                     onClick = { copyToClipboard(context, title, text) },
                     modifier = Modifier.size(32.dp).testTag("copy_code_block")
@@ -197,6 +304,18 @@ fun CodeBlockView(
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
                         contentDescription = "Copy code",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = saveAsc,
+                    modifier = Modifier.size(32.dp).testTag("export_asc_code_block")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FileDownload,
+                        contentDescription = "Export to .asc file",
                         tint = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.size(16.dp)
                     )

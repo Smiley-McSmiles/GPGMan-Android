@@ -3,6 +3,7 @@ package com.example
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -17,5 +18,16 @@ class ExampleRobolectricTest {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val appName = context.getString(R.string.app_name)
     assertEquals("GPGMan", appName)
+  }
+
+  @Test
+  fun `donation config constants validation`() {
+    assertEquals("Option-1", com.example.data.DonationConfig.OPTION_1_LABEL)
+    assertEquals("Option-2", com.example.data.DonationConfig.OPTION_2_LABEL)
+    assertEquals("Option-3", com.example.data.DonationConfig.OPTION_3_LABEL)
+
+    assertTrue(com.example.data.DonationConfig.OPTION_1_CLIPBOARD_TEXT.isNotEmpty())
+    assertTrue(com.example.data.DonationConfig.OPTION_2_CLIPBOARD_TEXT.isNotEmpty())
+    assertTrue(com.example.data.DonationConfig.OPTION_3_CLIPBOARD_TEXT.isNotEmpty())
   }
 }
