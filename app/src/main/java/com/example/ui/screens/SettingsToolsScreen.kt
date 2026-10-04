@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.ui.GpgViewModel
+import com.example.ui.components.DonationSection
 import com.example.ui.components.PatternLockView
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.ErrorRed
@@ -248,6 +249,11 @@ fun SettingsToolsScreen(viewModel: GpgViewModel) {
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Donations & Support Section
+        DonationSection(viewModel = viewModel)
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -483,7 +489,7 @@ fun SettingsToolsScreen(viewModel: GpgViewModel) {
         AlertDialog(
             onDismissRequest = { showAboutDialog = false },
             icon = { Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-            title = { Text("About GPGMan") },
+            title = { Text("About GPGMan v1.0.1") },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     Text(

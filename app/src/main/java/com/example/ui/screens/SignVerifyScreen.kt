@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.GpgViewModel
 import com.example.ui.components.CodeBlockView
+import com.example.ui.components.ExportAscButton
 import com.example.ui.components.VerificationResultCard
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -295,13 +296,19 @@ fun SignVerifyScreen(viewModel: GpgViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        ExportAscButton(
+                            fileName = "signed_message.asc",
+                            content = { signed },
+                            label = "Export .asc",
+                            modifier = Modifier.weight(1f).testTag("export_signed_asc_button")
+                        )
                         OutlinedButton(
                             onClick = { shareText(context, "PGP Signed Message", signed) },
                             modifier = Modifier.weight(1f).testTag("share_signed_message")
                         ) {
                             Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Share Signed Message")
+                            Text("Share")
                         }
                     }
                 }

@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.data.VaultItemEntity
 import com.example.ui.GpgViewModel
+import com.example.ui.components.ExportAscButton
 import com.example.ui.components.PassphrasePromptDialog
 import com.example.ui.components.copyToClipboard
 import com.example.ui.theme.ErrorRed
@@ -374,6 +375,12 @@ fun DecryptedVaultItemDialog(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Copy")
                         }
+
+                        ExportAscButton(
+                            fileName = "${item.title.replace(' ', '_')}.asc",
+                            content = { content },
+                            label = "Export .asc"
+                        )
 
                         OutlinedButton(
                             onClick = {

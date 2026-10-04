@@ -77,6 +77,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.GpgViewModel
 import com.example.ui.components.CodeBlockView
+import com.example.ui.components.ExportAscButton
+import com.example.ui.components.ExportAscIconButton
 import com.example.ui.components.VerificationResultCard
 import com.example.ui.components.copyToClipboard
 import java.text.SimpleDateFormat
@@ -447,6 +449,7 @@ fun EncryptDecryptScreen(viewModel: GpgViewModel) {
                     CodeBlockView(
                         text = encrypted,
                         title = "ENCRYPTED PGP MESSAGE",
+                        exportFileName = "encrypted_message.asc",
                         maxHeight = 200
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -454,6 +457,12 @@ fun EncryptDecryptScreen(viewModel: GpgViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        ExportAscButton(
+                            fileName = "encrypted_message.asc",
+                            content = { encrypted },
+                            label = "Export .asc",
+                            modifier = Modifier.weight(1f).testTag("export_encrypted_asc_button")
+                        )
                         OutlinedButton(
                             onClick = { shareText(context, "Encrypted PGP Message", encrypted) },
                             modifier = Modifier.weight(1f).testTag("share_encrypted_text")
@@ -475,8 +484,8 @@ fun EncryptDecryptScreen(viewModel: GpgViewModel) {
                             modifier = Modifier.weight(1f).testTag("save_encrypted_to_vault")
                         ) {
                             Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Save to Vault")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Vault")
                         }
                     }
                 }
@@ -640,10 +649,15 @@ fun EncryptDecryptScreen(viewModel: GpgViewModel) {
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
                                     )
-                                    Row {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
                                         IconButton(onClick = { copyToClipboard(context, "Decrypted Text", result.decryptedText) }) {
                                             Icon(Icons.Default.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(18.dp))
                                         }
+                                        ExportAscIconButton(
+                                            fileName = "${result.originalFileName.substringBeforeLast('.')}_decrypted.asc",
+                                            content = { result.decryptedText },
+                                            contentDescription = "Export decrypted text directly to .asc file"
+                                        )
                                         IconButton(onClick = { shareText(context, "Decrypted Content", result.decryptedText) }) {
                                             Icon(Icons.Default.Share, contentDescription = "Share", modifier = Modifier.size(18.dp))
                                         }
